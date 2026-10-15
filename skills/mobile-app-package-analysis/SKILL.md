@@ -70,6 +70,12 @@ Use ipatool list-versions --help and ipatool download --help to select a specifi
 
 A developer-provided IPA or user-provided GitHub release asset can be fetched directly with the helper above. Preserve the original .ipa; it is a ZIP package containing Payload/<App>.app.
 
+### Candidate and version lookup
+
+Use ipatool search and ipatool list-versions first for App Store records. A convenience page such as BetaDrop's App Store lookup can map an app name or App Store URL to a bundle ID and numeric App Store ID; that helps select the right record but does not provide an IPA.
+
+For older builds, IPA Archive is an index of links into Archive.org collections, not a host or verification service. Other third-party catalogs can expose app names, bundle IDs, versions, and candidate download links, but listings do not establish publisher provenance, authorization, signature integrity, or whether the IPA was modified. Use them only as discovery leads; do not auto-download or treat their files as official. See references/mobile-package-source-catalog.md for the checked source-by-source assessment.
+
 ## 2. Intake and provenance
 
 Run the inventory helper into a new, app-specific directory:
@@ -94,6 +100,7 @@ Use complementary views:
 3. **Alternative DEX output:** dex-decompile -i work/apks/<app>.apk -d work/analysis/<app>/dex-decompile when installed. Use it to cross-check difficult classes, not as a substitute for evidence in the original DEX.
 4. **Native libraries:** list lib/<abi>/*.so; use file, strings -a, readelf, Ghidra, or another compatible native analyzer.
 5. **Search targeted evidence:** search decoded sources and resources with rg -n -i for terms suggested by the app, such as billing, subscription, trial, purchase, upgrade, paywall, ad, reward, heart, streak, notification, and feature names found in the manifest or code.
+6. If Android SDK tools are unavailable, BetaDrop APK Inspector advertises client-side manifest and permission parsing in a browser. Treat this as a convenience parser, not a decompiler; the page says it checks only v1/JAR signature metadata, so use apksigner for complete signature verification. Prefer local tools for confidential samples.
 
 Capture class/method names and file paths for each finding. Decompiled source is an approximation; validate important claims against the DEX, bytecode, resource, or a second decompiler view.
 
@@ -135,6 +142,7 @@ Install only what the target needs; do not make every tool a prerequisite.
 - **REA:** terminal-oriented reverse-engineering workflows, including supported Android resource and native-analysis handoffs. Check rea capabilities and rea analyze --help; provider availability varies by host.
 - **Open-ReverseLab:** optional local knowledge base/case workflow for organizing repeatable APK analysis. It is not required to decode a package.
 - **mcp2cli:** expose an available MCP server as CLI subcommands; use mcp2cli --mcp-stdio "<server command>" --list and --search <term> to discover calls. Keep secrets in environment variables or secure configuration, never literal command history.
+- **BetaDrop utilities:** optional App Store ID/bundle ID lookup and browser-side APK metadata parsing. They are convenience tools, not package sources or DEX decompilers; avoid sending confidential packages to a service.
 - **IDA Pro MCP:** optional only when the user has a valid IDA Pro installation/license. It is not required for APK/IPA triage; use Ghidra or static strings/resources first.
 
 If a requested server is available only over MCP, mcp2cli can make its tool calls convenient from shell scripts. Do not install or invoke a paid/proprietary provider unless it is available and authorized.
