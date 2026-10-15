@@ -2,7 +2,7 @@
 
 A reusable workflow for acquiring an authorized Android APK or Apple IPA, preserving provenance, extracting package metadata, and analyzing code/resources without running the app. The helper scripts use Python 3.9+ and the standard library.
 
-Start with the [mobile app package analysis skill](skills/mobile-app-package-analysis/SKILL.md). It covers App Store and Android package acquisition, APK/IPA static analysis, evidence-based UI and monetization analysis, and optional tools explored for this workflow. Use the [report template](templates/static-analysis-report.md) to record findings.
+Start with the [mobile app package analysis skill](skills/mobile-app-package-analysis/SKILL.md). It covers App Store and Android package acquisition, APK/IPA static analysis, evidence-based UI and monetization analysis, and optional tools explored for this workflow. Use the [report template](templates/static-analysis-report.md) to record findings. The [source catalog](references/mobile-package-source-catalog.md) separates official routes, metadata helpers, distribution tools, and unverified IPA mirrors.
 
 ## Helpers
 
