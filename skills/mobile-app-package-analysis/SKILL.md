@@ -11,6 +11,20 @@ For each app, create a reproducible evidence trail from source to findings. Pref
 
 Work under a task directory such as work/apks/<app>/ and work/analysis/<app>/. Keep the original package immutable. Record the source, retrieval time, exact package filename, byte size, SHA-256, app identifier, version, and signature or encryption status when available.
 
+## Fast path: staged triage
+
+Start from the user's concrete question (for example, package identity, a feature, a purchase flow, or response speed). Pick a few search leads from the question and package metadata; do not begin with a broad scan of every class, resource, and framework.
+
+1. **Identify and inventory once.** Check `file`, archive contents, and the intake report. Reuse an extraction only when its input hash matches. Read the APK manifest or IPA `Info.plist` before choosing deeper tools.
+2. **Choose one first-pass view.** For APK UI/resources or manifest questions, use apktool with `--no-src`; for Java/Kotlin behavior, use JADX. For an IPA, start with `Info.plist`, app structure, and the main executable. Do not run every decompiler by default.
+3. **Search narrowly.** Use `rg -uu` on the extracted tree so hidden or ignored files are included, and constrain searches to likely file types/directories. Search specific strings, event names, resource identifiers, and symbols suggested by the question. Cap output with `head`, `-m`, or narrow context; never `cat` a large or minified file.
+4. **Follow only useful hits.** Read the containing method/resource and its direct callers or references. Cross-check with smali, a second DEX decompiler, native inspection, or additional resources only when the first view leaves a material uncertainty or a key claim needs corroboration.
+5. **Stop when the question is answered.** Keep the evidence for each requested finding and its important caveat. A broader inventory is useful only if it can change the conclusion.
+
+Batch independent read-only probes in one shell invocation or parallel tool calls when supported. Keep each result labeled and bounded. Run dependent steps, extraction, and writes sequentially. Usually a small number of passes is enough; continue when a specific unresolved question warrants it.
+
+Classify conclusions as **seen** (direct package evidence), **inferred** (interpretation from evidence), or **unknown** (not established). Cite a path and line, class/method, resource key, string, or binary offset so the user can check the claim. Static evidence is not observed runtime behavior.
+
 ## Scope and handling
 
 - Analyze packages the user supplied or is authorized to obtain. Use official developer releases, the relevant app store with the user's account, or another source the user identifies and is entitled to use.
@@ -93,23 +107,24 @@ For iOS, read Payload/<App>.app/Info.plist with Python plistlib or plutil. Recor
 
 ## 3. Android static analysis
 
-Use complementary views:
+Choose the first view based on the question; add another only when it supplies needed evidence:
 
-1. **Manifest, resources, and smali:** apktool d -f -o work/analysis/<app>/apktool work/apks/<app>.apk
-2. **Java-like DEX reconstruction:** jadx -d work/analysis/<app>/jadx work/apks/<app>.apk
-3. **Alternative DEX output:** dex-decompile -i work/apks/<app>.apk -d work/analysis/<app>/dex-decompile when installed. Use it to cross-check difficult classes, not as a substitute for evidence in the original DEX.
-4. **Native libraries:** list lib/<abi>/*.so; use file, strings -a, readelf, Ghidra, or another compatible native analyzer.
-5. **Search targeted evidence:** search decoded sources and resources with rg -n -i for terms suggested by the app, such as billing, subscription, trial, purchase, upgrade, paywall, ad, reward, heart, streak, notification, and feature names found in the manifest or code.
-6. If Android SDK tools are unavailable, BetaDrop APK Inspector advertises client-side manifest and permission parsing in a browser. Treat this as a convenience parser, not a decompiler; the page says it checks only v1/JAR signature metadata, so use apksigner for complete signature verification. Prefer local tools for confidential samples.
+1. **Identity and structure:** use the intake report, manifest, and archive inventory. For a quick manual inventory, use `unzip -l` rather than extracting repeatedly.
+2. **Manifest/resources/UI:** `apktool d --no-src -f -o work/analysis/<app>/apktool work/apks/<app>.apk`. Decode smali only when a code path needs bytecode-level confirmation.
+3. **Java/Kotlin behavior:** `jadx -d work/analysis/<app>/jadx work/apks/<app>.apk`, then search only relevant packages and likely terms. Avoid reading generated output wholesale.
+4. **Cross-check:** use `dex-decompile -i work/apks/<app>.apk -d work/analysis/<app>/dex-decompile` for a difficult or failed JADX class, not as a routine second pass. Compare the specific method or event involved.
+5. **Native code:** inspect `lib/<abi>/*.so` only when metadata, strings, or the call path indicates native logic. Start with `file`, bounded `strings -a`, and imports; disassemble only a relevant library/function.
+6. **Evidence search:** use `rg -uu -n -i` and restrict file globs/directories. Search terms should come from the user's question and initial metadata; common purchase terms include billing, subscription, trial, purchase, upgrade, paywall, and ad. UX terms can include reward, heart, streak, notification, and names discovered in code/resources.
+7. If Android SDK tools are unavailable, BetaDrop APK Inspector advertises client-side manifest and permission parsing in a browser. Treat this as a convenience parser, not a decompiler; the page says it checks only v1/JAR signature metadata, so use apksigner for complete signature verification. Prefer local tools for confidential samples.
 
 Capture class/method names and file paths for each finding. Decompiled source is an approximation; validate important claims against the DEX, bytecode, resource, or a second decompiler view.
 
 ## 4. iOS static analysis
 
-1. Extract with the intake helper, then inspect Payload/<App>.app/Info.plist, app extensions, Frameworks/, plug-ins, and embedded dylibs.
-2. Identify the main executable from CFBundleExecutable. Inspect it and framework binaries with file and strings -a; search with rg -a -n -i. Review bundle resources such as .strings, .stringsdict, JSON, .xz, storyboards, nibs, and asset catalogs. Decompress known resource formats into a separate analysis directory before searching.
-3. On macOS, use otool -L for linked libraries and otool -l to inspect Mach-O load commands. Check LC_ENCRYPTION_INFO / LC_ENCRYPTION_INFO_64 and report cryptid; do not attempt to defeat encryption. Linux tools may not understand Mach-O, so use Ghidra or another compatible parser for native code.
-4. Search app and framework strings for concrete indicators: purchase-flow presenters, subscription/trial providers, ad mediation, offer screens, onboarding, cancellation flows, hearts/energy, streaks, reminders, referrals, and social features. Confirm with resource names and localized copy where possible.
+1. Extract with the intake helper; inspect `Info.plist`, app structure, extensions, and the main executable named by `CFBundleExecutable`.
+2. Start with package identity, `file`, linked libraries, and relevant resources. Search localized strings and asset names for leads; inspect only candidate app/framework binaries with `strings -a` and `rg -a` rather than scanning every framework by default.
+3. On macOS, use `otool -L` for linked libraries and `otool -l` to inspect Mach-O load commands. Check `LC_ENCRYPTION_INFO` / `LC_ENCRYPTION_INFO_64` and report `cryptid`; do not attempt to defeat encryption. Linux tools may not understand Mach-O, so use Ghidra or another compatible parser only when native logic is needed.
+4. Review relevant `.strings`, `.stringsdict`, JSON, `.xz`, storyboards, nibs, and asset catalogs. Decompress known resource formats into a separate analysis directory before searching. Follow purchase, onboarding, cancellation, streak, reminder, referral, and social-feature leads only as far as they address the question.
 5. Check for injected or unexpected libraries, frameworks, bundle identifiers, entitlements, and signing changes. Treat third-party mirror descriptions as unverified claims.
 
 Strings and asset names establish that a flow or feature is present in the package, not that it is enabled for every user. Remote configuration, experiments, account state, region, server responses, and modifications can change the actual UI.
